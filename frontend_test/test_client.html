@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Maintenance ML Service Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .form-group input {
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #e1e1e1;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .result-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e1e1e1;
+        }
+
+        .result-item .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .result-item .value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-normal {
+            background: #28a745;
+        }
+
+        .status-warning {
+            background: #ffc107;
+        }
+
+        .status-danger {
+            background: #dc3545;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            margin: 10px 0;
+        }
+
+        .vehicles-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .vehicle-item {
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .vehicle-item:hover {
+            background: #f8f9fa;
+        }
+
+        .vehicle-item:last-child {
+            border-bottom: none;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e1e1e1;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .api-url-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Vehicle Maintenance ML Service</h1>
+            <p>Production-Ready Predictive Maintenance Testing Interface</p>
+        </div>
+
+        <div class="content">
+            <!-- API Configuration -->
+            <div class="section">
+                <h2>⚙️ API Configuration</h2>
+                <input type="text" id="apiUrl" class="api-url-input" 
+                       placeholder="http://localhost:8000" value="http://localhost:8000">
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="checkHealth()">🔍 Check Health</button>
+                    <button class="btn btn-secondary" onclick="loadVehicles()">📋 Load Vehicles</button>
+                </div>
+                <div id="healthStatus"></div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('single')">Single Prediction</button>
+                <button class="tab" onclick="showTab('batch')">Batch Prediction</button>
+                <button class="tab" onclick="showTab('vehicles')">Vehicle Data</button>
+                <button class="tab" onclick="showTab('docs')">API Documentation</button>
+            </div>
+
+            <!-- Single Prediction Tab -->
+            <div id="single-tab" class="tab-content active">
+                <div class="section">
+                    <h2>🔮 Single Vehicle Prediction</h2>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="vehicleId">Vehicle ID</label>
+                            <input type="text" id="vehicleId" value="VEH-001" placeholder="VEH-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="engineRpm">Engine RPM</label>
+                            <input type="number" id="engineRpm" value="800" min="0" max="5000">
+                        </div>
+                        <div class="form-group">
+                            <label for="lubOilPressure">Lub Oil Pressure</label>
+                            <input type="number" id="lubOilPressure" value="3.0" min="0" max="10" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="fuelPressure">Fuel Pressure</label>
+                            <input type="number" id="fuelPressure" value="6.0" min="0" max="30" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="coolantPressure">Coolant Pressure</label>
+                            <input type="number" id="coolantPressure" value="2.0" min="0" max="10" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="lubOilTemp">Lub Oil Temperature (°C)</label>
+                            <input type="number" id="lubOilTemp" value="77" min="-50" max="150" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="coolantTemp">Coolant Temperature (°C)</label>
+                            <input type="number" id="coolantTemp" value="78" min="-50" max="200" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="tempDiff">Temperature Difference</label>
+                            <input type="number" id="tempDiff" value="1" min="-100" max="100" step="0.1" readonly>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="predictSingle()">🔮 Predict</button>
+                        <button class="btn btn-secondary" onclick="generateRandomData()">🎲 Random Data</button>
+                        <button class="btn btn-secondary" onclick="generateAnomalyData()">⚠️ Generate Anomaly</button>
+                        <button class="btn btn-danger" onclick="clearForm()">🗑️ Clear</button>
+                    </div>
+
+                    <div id="singleResult"></div>
+                </div>
+            </div>
+
+            <!-- Batch Prediction Tab -->
+            <div id="batch-tab" class="tab-content">
+                <div class="section">
+                    <h2>📊 Batch Vehicle Prediction</h2>
+                    
+                    <div class="form-group">
+                        <label for="batchSize">Number of Vehicles</label>
+                        <input type="number" id="batchSize" value="5" min="1" max="20">
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="predictBatch()">🔮 Predict Batch</button>
+                        <button class="btn btn-secondary" onclick="generateBatchData()">🎲 Generate Random Batch</button>
+                    </div>
+
+                    <div id="batchResult"></div>
+                </div>
+            </div>
+
+            <!-- Vehicle Data Tab -->
+            <div id="vehicles-tab" class="tab-content">
+                <div class="section">
+                    <h2>📋 Vehicle Data</h2>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-secondary" onclick="loadVehicles()">📋 Load Vehicles</button>
+                        <button class="btn btn-primary" onclick="triggerDailyPredictions()">🔄 Trigger Daily Predictions</button>
+                    </div>
+
+                    <div id="vehiclesList"></div>
+                </div>
+            </div>
+
+            <!-- Documentation Tab -->
+            <div id="docs-tab" class="tab-content">
+                <div class="section">
+                    <h2>📚 API Documentation</h2>
+                    
+                    <div class="result-card">
+                        <h3>Available Endpoints</h3>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="label">Health Check</div>
+                                <div class="value">GET /health</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Single Prediction</div>
+                                <div class="value">POST /predict</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Batch Prediction</div>
+                                <div class="value">POST /predict/batch</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Get Vehicles</div>
+                                <div class="value">GET /vehicles</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Vehicle Data</div>
+                                <div class="value">GET /vehicles/{id}/latest-data</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Model Features</div>
+                                <div class="value">GET /model/features</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>Sample Request Payload</h3>
+                        <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto;">
+{
+    "sensor_data": {
+    "vehicle_id": "VEH-001",
+    "Engine_rpm": 800,
+    "Lub_oil_pressure": 3.0,
+    "Fuel_pressure": 6.0,
+    "Coolant_pressure": 2.0,
+    "lub_oil_temp": 77.0,
+    "Coolant_temp": 78.0,
+    "Temperature_difference": 1.0
+  }
+}
+                        </pre>
+                    </div>
+
+                    <div class="result-card">
+                        <h3>Sample Response</h3>
+                        <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto;">
+{
+  "vehicle_id": "VEH-001",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "maintenance_required": false,
+  "maintenance_probability": 15.5,
+  "estimated_days_remaining_before_maintenance": 45,
+  "model_confidence": 84.5,
+  "sensor_data": { ... }
+}
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = document.getElementById('apiUrl').value;
+
+        // Tab switching
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Auto-calculate temperature difference
+        document.getElementById('coolantTemp').addEventListener('input', updateTempDiff);
+        document.getElementById('lubOilTemp').addEventListener('input', updateTempDiff);
+
+        function updateTempDiff() {
+            const coolantTemp = parseFloat(document.getElementById('coolantTemp').value) || 0;
+            const lubOilTemp = parseFloat(document.getElementById('lubOilTemp').value) || 0;
+            document.getElementById('tempDiff').value = (coolantTemp - lubOilTemp).toFixed(1);
+        }
+
+        // API Functions
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const url = `${document.getElementById('apiUrl').value}${endpoint}`;
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail || `HTTP ${response.status}`);
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        async function checkHealth() {
+            const statusDiv = document.getElementById('healthStatus');
+            statusDiv.innerHTML = '<div class="loading">🔍 Checking health...</div>';
+            
+            try {
+                const health = await apiCall('/health');
+                statusDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Service is healthy
+                        <br>Model loaded: ${health.model_loaded ? 'Yes' : 'No'}
+                        <br>Features: ${health.features ? health.features.length : 0}
+                    </div>
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Health check failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function predictSingle() {
+            const resultDiv = document.getElementById('singleResult');
+            resultDiv.innerHTML = '<div class="loading">🔮 Making prediction...</div>';
+            
+            try {
+                const sensorData = {
+                    vehicle_id: document.getElementById('vehicleId').value,
+                    'Engine_rpm': parseFloat(document.getElementById('engineRpm').value),
+                    'Lub_oil_pressure': parseFloat(document.getElementById('lubOilPressure').value),
+                    'Fuel_pressure': parseFloat(document.getElementById('fuelPressure').value),
+                    'Coolant_pressure': parseFloat(document.getElementById('coolantPressure').value),
+                    'lub_oil_temp': parseFloat(document.getElementById('lubOilTemp').value),
+                    'Coolant_temp': parseFloat(document.getElementById('coolantTemp').value),
+                    'Temperature_difference': parseFloat(document.getElementById('tempDiff').value)
+                };
+                
+                const result = await apiCall('/predict', 'POST', { sensor_data: sensorData });
+                
+                const statusClass = result.maintenance_required ? 'status-danger' : 
+                                  result.maintenance_probability > 60 ? 'status-warning' : 'status-normal';
+                
+                resultDiv.innerHTML = `
+                    <div class="result-card">
+                        <h3>
+                            <span class="status-indicator ${statusClass}"></span>
+                            Prediction Results for ${result.vehicle_id}
+                        </h3>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="label">Maintenance Required</div>
+                                <div class="value">${result.maintenance_required ? '⚠️ YES' : '✅ NO'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Maintenance Probability</div>
+                                <div class="value">${result.maintenance_probability}%</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Days Until Maintenance</div>
+                                <div class="value">${result.estimated_days_remaining_before_maintenance} days</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Model Confidence</div>
+                                <div class="value">${result.model_confidence}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Prediction failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function predictBatch() {
+            const resultDiv = document.getElementById('batchResult');
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+            
+            resultDiv.innerHTML = '<div class="loading">🔮 Making batch predictions...</div>';
+            
+            try {
+                const sensorDataList = [];
+                for (let i = 0; i < batchSize; i++) {
+                    sensorDataList.push(generateRandomSensorData(`VEH-${String(i+1).padStart(3, '0')}`));
+                }
+                
+                const result = await apiCall('/predict/batch', 'POST', { sensor_data_list: sensorDataList });
+                
+                let html = '<div class="result-card"><h3>Batch Prediction Results</h3>';
+                result.forEach(prediction => {
+                    const statusClass = prediction.maintenance_required ? 'status-danger' : 
+                                      prediction.maintenance_probability > 60 ? 'status-warning' : 'status-normal';
+                    
+                    html += `
+                        <div class="result-item" style="margin-bottom: 10px;">
+                            <div class="label">
+                                <span class="status-indicator ${statusClass}"></span>
+                                ${prediction.vehicle_id}
+                            </div>
+                            <div class="value">
+                                ${prediction.maintenance_required ? '⚠️ Maintenance Required' : '✅ Normal'} 
+                                | ${prediction.maintenance_probability}% risk | 
+                                ${prediction.estimated_days_remaining_before_maintenance} days
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Batch prediction failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function loadVehicles() {
+            const listDiv = document.getElementById('vehiclesList');
+            listDiv.innerHTML = '<div class="loading">📋 Loading vehicles...</div>';
+            
+            try {
+                const result = await apiCall('/vehicles');
+                
+                let html = '<div class="result-card"><h3>Available Vehicles</h3>';
+                html += '<div class="vehicles-list">';
+                
+                result.vehicles.forEach(vehicle => {
+                    html += `
+                        <div class="vehicle-item" onclick="loadVehicleData('${vehicle.vehicle_id}')">
+                            <strong>${vehicle.vehicle_id}</strong> - ${vehicle.make} ${vehicle.model} (${vehicle.year})
+                            <br><small>Status: ${vehicle.status} | Last Maintenance: ${vehicle.last_maintenance}</small>
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+                listDiv.innerHTML = html;
+            } catch (error) {
+                listDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Failed to load vehicles: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function loadVehicleData(vehicleId) {
+            try {
+                const result = await apiCall(`/vehicles/${vehicleId}/latest-data`);
+                
+                // Fill form with vehicle data
+                document.getElementById('vehicleId').value = result.sensor_data.vehicle_id;
+                document.getElementById('engineRpm').value = result.sensor_data['Engine rpm'];
+                document.getElementById('lubOilPressure').value = result.sensor_data['Lub oil pressure'];
+                document.getElementById('fuelPressure').value = result.sensor_data['Fuel pressure'];
+                document.getElementById('coolantPressure').value = result.sensor_data['Coolant pressure'];
+                document.getElementById('lubOilTemp').value = result.sensor_data['lub oil temp'];
+                document.getElementById('coolantTemp').value = result.sensor_data['Coolant temp'];
+                updateTempDiff();
+                
+                // Switch to single prediction tab
+                showTab('single');
+                
+                // Auto-predict
+                setTimeout(predictSingle, 500);
+            } catch (error) {
+                alert(`Failed to load vehicle data: ${error.message}`);
+            }
+        }
+
+        async function triggerDailyPredictions() {
+            try {
+                await apiCall('/trigger-daily-predictions', 'POST');
+                alert('✅ Daily predictions triggered successfully!');
+            } catch (error) {
+                alert(`❌ Failed to trigger daily predictions: ${error.message}`);
+            }
+        }
+
+        // Utility functions
+        function generateRandomSensorData(vehicleId) {
+            return {
+                vehicle_id: vehicleId,
+                'Engine_rpm': 600 + Math.random() * 800,
+                'Lub_oil_pressure': 2.0 + Math.random() * 3.0,
+                'Fuel_pressure': 5.0 + Math.random() * 5.0,
+                'Coolant_pressure': 1.5 + Math.random() * 2.5,
+                'lub_oil_temp': 75 + Math.random() * 10,
+                'Coolant_temp': 76 + Math.random() * 12,
+                'Temperature_difference': 0
+            };
+        }
+
+        function generateRandomData() {
+            const data = generateRandomSensorData(document.getElementById('vehicleId').value);
+            data['Temperature_difference'] = data['Coolant_temp'] - data['lub_oil_temp'];
+            
+            document.getElementById('engineRpm').value = data['Engine_rpm'].toFixed(0);
+            document.getElementById('lubOilPressure').value = data['Lub_oil_pressure'].toFixed(1);
+            document.getElementById('fuelPressure').value = data['Fuel_pressure'].toFixed(1);
+            document.getElementById('coolantPressure').value = data['Coolant_pressure'].toFixed(1);
+            document.getElementById('lubOilTemp').value = data['lub_oil_temp'].toFixed(1);
+            document.getElementById('coolantTemp').value = data['Coolant_temp'].toFixed(1);
+            updateTempDiff();
+        }
+
+        function generateAnomalyData() {
+            document.getElementById('vehicleId').value = 'VEH-ANOMALY';
+            document.getElementById('engineRpm').value = 2000 + Math.random() * 1000;
+            document.getElementById('lubOilPressure').value = 0.5 + Math.random() * 0.5;
+            document.getElementById('fuelPressure').value = 15 + Math.random() * 10;
+            document.getElementById('coolantPressure').value = 0.8 + Math.random() * 0.4;
+            document.getElementById('lubOilTemp').value = 85 + Math.random() * 10;
+            document.getElementById('coolantTemp').value = 100 + Math.random() * 30;
+            updateTempDiff();
+        }
+
+        function generateBatchData() {
+            const batchSize = parseInt(document.getElementById('batchSize').value);
+            // Data will be generated in the predictBatch function
+            predictBatch();
+        }
+
+        function clearForm() {
+            document.getElementById('vehicleId').value = 'VEH-001';
+            document.getElementById('engineRpm').value = 800;
+            document.getElementById('lubOilPressure').value = 3.0;
+            document.getElementById('fuelPressure').value = 6.0;
+            document.getElementById('coolantPressure').value = 2.0;
+            document.getElementById('lubOilTemp').value = 77;
+            document.getElementById('coolantTemp').value = 78;
+            updateTempDiff();
+        }
+
+        // Initialize
+        updateTempDiff();
+        checkHealth();
+    </script>
+</body>
+</html>

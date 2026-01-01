@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  ml-service:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - USE_MOCK_DATA=true
+      - BACKEND_API_URL=http://backend:3000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a simple backend for testing
+  backend-mock:
+    image: node:16-alpine
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./mock_backend:/app
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    profiles:
+      - testing
+    restart: unless-stopped
+
+volumes:
+  models:
+  logs:
