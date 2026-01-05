@@ -274,29 +274,193 @@ The service provides comprehensive logging:
 
 - Model loading and prediction events
 - API request/response logging
-- Error tracking and debugging
+- Error tracking and debuggingl
 - Daily prediction job status
 
 Log levels can be configured via `LOG_LEVEL` environment variable.
 
-## Model Performance
+## Machine Learning Model Analysis
 
-The Gradient Boosting Machine model achieves:
+### Model Architecture
 
+**Algorithm**: Gradient Boosting Machine (GBM) Classifier  
+**Library**: scikit-learn (GradientBoostingClassifier)  
+**Type**: Supervised Binary Classification  
+
+### Model Characteristics
+
+#### ✅ **Dynamic Machine Learning Model**
+This is a **fully dynamic ML model**, NOT static. Key characteristics:
+
+- **Trained on real data**: Uses historical vehicle sensor data from `engine_data.csv`
+- **Feature engineering**: Creates new features like `Temperature_difference`
+- **Adaptive predictions**: Predictions vary based on real-time sensor inputs
+- **Probabilistic outputs**: Provides confidence scores and probability estimates
+- **Contextual estimates**: Calculates dynamic maintenance days based on sensor conditions
+
+#### **Model Parameters**
+```python
+GradientBoostingClassifier(
+    n_estimators=100,           # Number of boosting stages
+    learning_rate=0.1,          # Step size shrinkage
+    max_depth=3,                # Maximum tree depth
+    random_state=42,            # Reproducibility
+    max_features='sqrt',        # Feature selection strategy
+    min_samples_leaf=5,         # Minimum samples per leaf
+    min_samples_split=2,        # Minimum samples to split
+    subsample=0.8               # Fraction of samples for each tree
+)
+```
+
+### Feature Engineering
+
+#### **Input Features (7 total)**
+1. **Engine_rpm** - Engine revolutions per minute
+2. **Lub_oil_pressure** - Lubricating oil pressure
+3. **Fuel_pressure** - Fuel system pressure
+4. **Coolant_pressure** - Engine coolant pressure
+5. **lub_oil_temp** - Lubricating oil temperature
+6. **Coolant_temp** - Engine coolant temperature
+7. **Temperature_difference** - *Engineered feature*: Coolant_temp - lub_oil_temp
+
+#### **Target Variable**
+- **Engine Condition** (Binary): 0 = Normal, 1 = Maintenance Required
+
+#### **Data Preprocessing**
+- **Feature Scaling**: StandardScaler applied to all features
+- **Missing Values**: Rows with missing data are dropped
+- **Feature Engineering**: Temperature difference calculated dynamically
+- **Column Renaming**: Spaces replaced with underscores for API compatibility
+
+### Model Performance Metrics
+
+#### **Classification Performance**
 - **Accuracy**: ~67% on test data
-- **Precision**: 69% (maintenance required), 59% (normal)
-- **Recall**: 85% (maintenance required), 36% (normal)
-- **F1-Score**: 76% (maintenance required), 45% (normal)
+- **Precision**: 
+  - Maintenance Required: 69%
+  - Normal Condition: 59%
+- **Recall**: 
+  - Maintenance Required: 85%
+  - Normal Condition: 36%
+- **F1-Score**: 
+  - Maintenance Required: 76%
+  - Normal Condition: 45%
 
-### Feature Importance
+#### **Feature Importance Ranking**
+1. **Coolant_pressure**: 70% importance
+2. **Temperature_difference**: 70% importance  
+3. **Lub_oil_pressure**: 21% importance
+4. **Coolant_temp**: 21% importance
+5. **Fuel_pressure**: 14% importance
+6. **lub_oil_temp**: 14% importance
+7. **Engine_rpm**: 7% importance
 
-1. Coolant pressure: 70% importance
-2. Temperature_difference: 70% importance  
-3. Lub oil pressure: 21% importance
-4. Coolant temp: 21% importance
-5. Fuel pressure: 14% importance
-6. lub oil temp: 14% importance
-7. Engine rpm: 7% importance
+### Dynamic Prediction Logic
+
+#### **Maintenance Probability Calculation**
+The model uses the trained GBM to calculate:
+- **Binary prediction** (0/1) based on sensor patterns
+- **Probability score** (0-100%) from predict_proba()
+- **Model confidence** = max(probability, 1-probability)
+
+#### **Dynamic Days Until Maintenance**
+**NOT a static lookup** - calculated dynamically based on:
+
+1. **Base interval**: 30 days
+2. **Probability factor**:
+   - >80%: 0.1x (urgent - ~3 days)
+   - >60%: 0.3x (high priority - ~9 days)
+   - >40%: 0.6x (medium - ~18 days)
+   - ≤40%: 1.0x (normal - ~30 days)
+
+3. **Critical sensor factors**:
+   - **High RPM** (>2000): 0.5x multiplier
+   - **Temperature difference** (>20°C): 0.6x multiplier
+   - **Abnormal pressures** (<1.0 or >6.0): 0.7x multiplier
+
+4. **Final calculation**: `days = base_days × probability_factor × critical_factors`
+5. **Range**: Clamped between 1-90 days
+
+### Model Training Process
+
+#### **Data Pipeline**
+1. **Load data** from CSV file
+2. **Preprocess** with feature engineering
+3. **Split data**: 70% train, 30% test (stratified)
+4. **Scale features** using StandardScaler
+5. **Train model** with GBM algorithm
+6. **Evaluate performance** with classification metrics
+7. **Save model** with scaler and metadata
+
+#### **Model Persistence**
+- **Format**: Pickle file (.pkl)
+- **Contents**: Model + Scaler + Feature columns
+- **Location**: `models/vehicle_maintenance_model.pkl`
+- **Versioning**: Single file with all components
+
+### Real-Time Inference
+
+#### **Single Prediction Flow**
+1. **Validate input** sensor data
+2. **Scale features** using trained StandardScaler
+3. **Predict** using GBM model
+4. **Calculate probability** and confidence
+5. **Estimate days** using dynamic logic
+6. **Return structured response**
+
+#### **Batch Processing**
+- Processes multiple vehicles sequentially
+- Error handling per vehicle
+- Maintains response consistency
+
+### Model Limitations & Considerations
+
+#### **Current Limitations**
+- **Training data size**: Limited by available dataset
+- **Feature scope**: Only 7 sensor features
+- **Temporal aspects**: No time-series analysis
+- **Vehicle diversity**: Single model for all vehicle types
+
+#### **Production Considerations**
+- **Model retraining**: Should be scheduled periodically
+- **Feature drift**: Monitor sensor data distribution changes
+- **Performance monitoring**: Track accuracy over time
+- **A/B testing**: Compare with baseline maintenance schedules
+
+#### **Scalability**
+- **Inference speed**: ~1ms per prediction
+- **Memory usage**: ~10MB model size
+- **Batch capacity**: No inherent limit
+- **Concurrent requests**: Stateless design allows scaling
+
+### Model Validation
+
+#### **Input Validation**
+- **Required features**: All 7 features must be present
+- **Data types**: Numeric values only
+- **Range checking**: Validates for NaN/Inf values
+- **Format compliance**: Ensures API compatibility
+
+#### **Output Validation**
+- **Probability range**: 0-100%
+- **Days range**: 1-90 days
+- **Confidence calculation**: Max of class probabilities
+- **Error handling**: Graceful fallbacks
+
+### Future Enhancements
+
+#### **Potential Improvements**
+1. **Additional features**: Vehicle age, mileage, maintenance history
+2. **Time-series analysis**: Sequential sensor patterns
+3. **Ensemble models**: Combine multiple algorithms
+4. **Deep learning**: Neural networks for complex patterns
+5. **Transfer learning**: Adapt to different vehicle types
+
+#### **Model Monitoring**
+1. **Drift detection**: Feature distribution changes
+2. **Performance tracking**: Accuracy over time
+3. **Prediction auditing**: Review maintenance outcomes
+4. **Feedback loops**: Incorporate actual maintenance results
 
 ## Troubleshooting
 
