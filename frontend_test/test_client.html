@@ -364,21 +364,151 @@
 
             <!-- Batch Prediction Tab -->
             <div id="batch-tab" class="tab-content">
-                <div class="section">
-                    <h2>📊 Batch Vehicle Prediction</h2>
-                    
-                    <div class="form-group">
-                        <label for="batchSize">Number of Vehicles</label>
-                        <input type="number" id="batchSize" value="5" min="1" max="20">
-                    </div>
-
-                    <div class="button-group">
-                        <button class="btn btn-primary" onclick="predictBatch()">🔮 Predict Batch</button>
-                        <button class="btn btn-secondary" onclick="generateBatchData()">🎲 Generate Random Batch</button>
-                    </div>
-
-                    <div id="batchResult"></div>
-                </div>
+                <div class="tab-content" id="gps-tab">
+            <h3>GPS IoT Data Testing</h3>
+            
+            <div class="form-group">
+                <label for="gpsVehicleName">Vehicle Name:</label>
+                <input type="text" id="gpsVehicleName" value="1006" placeholder="GPS Vehicle Name">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsVin">VIN:</label>
+                <input type="text" id="gpsVin" value="LSGHD52H9ND045496" placeholder="Vehicle VIN">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsEngineStatus">Engine Status:</label>
+                <select id="gpsEngineStatus">
+                    <option value="0">Off</option>
+                    <option value="1">On</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsIgnitionStatus">Ignition Status:</label>
+                <select id="gpsIgnitionStatus">
+                    <option value="0">Off</option>
+                    <option value="1">On</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsSpeed">Speed (km/h):</label>
+                <input type="number" id="gpsSpeed" value="0" min="0" max="200" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsOdometer">Odometer (km):</label>
+                <input type="number" id="gpsOdometer" value="111214" min="0" step="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsLatitude">Latitude:</label>
+                <input type="number" id="gpsLatitude" value="19.899827" step="0.000001">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsLongitude">Longitude:</label>
+                <input type="number" id="gpsLongitude" value="-99.222737" step="0.000001">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsTripCount">Daily Trip Count:</label>
+                <input type="number" id="gpsTripCount" value="3" min="0" step="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsTripDistance">Daily Distance (km):</label>
+                <input type="number" id="gpsTripDistance" value="100" min="0" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsTripDuration">Trip Duration:</label>
+                <input type="text" id="gpsTripDuration" value="3:02:43" placeholder="H:MM:SS">
+            </div>
+            
+            <div class="form-group">
+                <label for="gpsVoltage">Voltage (V):</label>
+                <input type="number" id="gpsVoltage" value="12.6" min="0" max="20" step="0.1">
+            </div>
+            
+            <div class="button-group">
+                <button onclick="predictGPS()">Predict GPS IoT</button>
+                <button onclick="generateRandomGPSData()">Random GPS Data</button>
+                <button onclick="fetchRealGPSData()">Fetch Real GPS Data</button>
+            </div>
+            
+            <div id="gpsResult" class="result-box"></div>
+        </div>
+        
+        <div class="tab-content" id="hybrid-tab">
+            <h3>Hybrid Data Testing (Sensor + GPS)</h3>
+            
+            <div class="form-group">
+                <label for="hybridVehicleId">Vehicle ID:</label>
+                <input type="text" id="hybridVehicleId" value="VEH-001" placeholder="Vehicle ID">
+            </div>
+            
+            <h4>Sensor Data</h4>
+            <div class="form-group">
+                <label for="hybridEngineRpm">Engine RPM:</label>
+                <input type="number" id="hybridEngineRpm" value="800" min="0" max="5000">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridLubOilPressure">Lub Oil Pressure:</label>
+                <input type="number" id="hybridLubOilPressure" value="3.0" min="0" max="10" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridFuelPressure">Fuel Pressure:</label>
+                <input type="number" id="hybridFuelPressure" value="6.0" min="0" max="30" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridCoolantPressure">Coolant Pressure:</label>
+                <input type="number" id="hybridCoolantPressure" value="2.0" min="0" max="10" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridLubOilTemp">Lub Oil Temperature:</label>
+                <input type="number" id="hybridLubOilTemp" value="77.0" min="-50" max="150" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridCoolantTemp">Coolant Temperature:</label>
+                <input type="number" id="hybridCoolantTemp" value="78.0" min="-50" max="200" step="0.1">
+            </div>
+            
+            <h4>GPS IoT Data</h4>
+            <div class="form-group">
+                <label for="hybridGpsVehicleName">GPS Vehicle Name:</label>
+                <input type="text" id="hybridGpsVehicleName" value="1006" placeholder="GPS Vehicle Name">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridGpsVin">GPS VIN:</label>
+                <input type="text" id="hybridGpsVin" value="LSGHD52H9ND045496" placeholder="Vehicle VIN">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridGpsSpeed">GPS Speed (km/h):</label>
+                <input type="number" id="hybridGpsSpeed" value="0" min="0" max="200" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="hybridGpsOdometer">GPS Odometer (km):</label>
+                <input type="number" id="hybridGpsOdometer" value="111214" min="0" step="1">
+            </div>
+            
+            <div class="button-group">
+                <button onclick="predictHybrid()">Predict Hybrid</button>
+                <button onclick="generateRandomHybridData()">Random Hybrid Data</button>
+            </div>
+            
+            <div id="hybridResult" class="result-box"></div>
+        </div>        </div>
             </div>
 
             <!-- Vehicle Data Tab -->
@@ -767,6 +897,275 @@
 
         // Initialize
         updateTempDiff();
+
+        // GPS IoT Functions
+        async function predictGPS() {
+            const resultDiv = document.getElementById('gpsResult');
+            resultDiv.innerHTML = '<div class="loading">🔮 Making GPS IoT prediction...</div>';
+            
+            try {
+                const gpsData = {
+                    vehicle_name: document.getElementById('gpsVehicleName').value,
+                    vin: document.getElementById('gpsVin').value,
+                    engine_status: parseInt(document.getElementById('gpsEngineStatus').value),
+                    ignition_status: parseInt(document.getElementById('gpsIgnitionStatus').value),
+                    speed: parseFloat(document.getElementById('gpsSpeed').value),
+                    odometer_km: parseFloat(document.getElementById('gpsOdometer').value),
+                    last_position_latitude: parseFloat(document.getElementById('gpsLatitude').value),
+                    last_position_longitude: parseFloat(document.getElementById('gpsLongitude').value),
+                    last_position_timestamp: new Date().toISOString(),
+                    trip_count: parseInt(document.getElementById('gpsTripCount').value),
+                    trip_total_km: parseFloat(document.getElementById('gpsTripDistance').value),
+                    trip_duration: document.getElementById('gpsTripDuration').value,
+                    voltage: parseFloat(document.getElementById('gpsVoltage').value)
+                };
+                
+                const result = await apiCall('/predict/gps-iot', 'POST', { gps_data: gpsData });
+                
+                const statusClass = result.maintenance_required ? 'warning' : 'success';
+                
+                resultDiv.innerHTML = `
+                    <div class="result-card">
+                        <h3>
+                            <span class="status-indicator ${statusClass}"></span>
+                            GPS IoT Prediction for ${result.vehicle_id}
+                        </h3>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="label">Maintenance Required</div>
+                                <div class="value">${result.maintenance_required ? '⚠️ YES' : '✅ NO'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Maintenance Probability</div>
+                                <div class="value">${result.maintenance_probability}%</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Days Until Maintenance</div>
+                                <div class="value">${result.estimated_days_remaining_before_maintenance} days</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Model Confidence</div>
+                                <div class="value">${result.model_confidence}%</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Data Source</div>
+                                <div class="value">${result.data_source || 'gps_iot'}</div>
+                            </div>
+                        </div>
+                        ${result.gps_insights ? `
+                            <div class="gps-insights">
+                                <h4>📍 GPS Insights</h4>
+                                <div class="insights-grid">
+                                    <div class="insight-item">
+                                        <div class="label">VIN</div>
+                                        <div class="value">${result.gps_insights.vin}</div>
+                                    </div>
+                                    <div class="insight-item">
+                                        <div class="label">Current Speed</div>
+                                        <div class="value">${result.gps_insights.current_speed || 0} km/h</div>
+                                    </div>
+                                    <div class="insight-item">
+                                        <div class="label">Odometer</div>
+                                        <div class="value">${result.gps_insights.odometer_km || 0} km</div>
+                                    </div>
+                                    <div class="insight-item">
+                                        <div class="label">Daily Trips</div>
+                                        <div class="value">${result.gps_insights.daily_trips || 0}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ GPS IoT prediction failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function generateRandomGPSData() {
+            const vehicleNames = ['1006', '1008', '1009', '1010', '1011', '1012', '1014', '1016', '1017', '1018'];
+            const vins = ['LSGHD52H9ND045496', '3KPA24BC4NE453663', '3KPA24BC2NE460675', 'MEX5B2605NT017117', 'MEX5B2602NT012229'];
+            
+            document.getElementById('gpsVehicleName').value = vehicleNames[Math.floor(Math.random() * vehicleNames.length)];
+            document.getElementById('gpsVin').value = vins[Math.floor(Math.random() * vins.length)];
+            document.getElementById('gpsEngineStatus').value = Math.random() > 0.3 ? '1' : '0';
+            document.getElementById('gpsIgnitionStatus').value = Math.random() > 0.4 ? '1' : '0';
+            document.getElementById('gpsSpeed').value = (Math.random() * 80).toFixed(1);
+            document.getElementById('gpsOdometer').value = Math.floor(50000 + Math.random() * 200000);
+            document.getElementById('gpsLatitude').value = (19.0 + Math.random() * 1.0).toFixed(6);
+            document.getElementById('gpsLongitude').value = (-99.5 + Math.random() * 0.5).toFixed(6);
+            document.getElementById('gpsTripCount').value = Math.floor(Math.random() * 15);
+            document.getElementById('gpsTripDistance').value = (Math.random() * 200).toFixed(1);
+            document.getElementById('gpsTripDuration').value = `${Math.floor(Math.random() * 8)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`;
+            document.getElementById('gpsVoltage').value = (11.5 + Math.random() * 2.0).toFixed(1);
+        }
+
+        async function fetchRealGPSData() {
+            const resultDiv = document.getElementById('gpsResult');
+            const vehicleName = document.getElementById('gpsVehicleName').value;
+            
+            resultDiv.innerHTML = '<div class="loading">🔄 Fetching real GPS data...</div>';
+            
+            try {
+                const result = await apiCall(`/gps-iot/vehicles/${vehicleName}/data`, 'GET');
+                
+                // Update form with real data
+                document.getElementById('gpsVin').value = result.vin || '';
+                document.getElementById('gpsEngineStatus').value = result.engine_status?.toString() || '0';
+                document.getElementById('gpsIgnitionStatus').value = result.ignition_status?.toString() || '0';
+                document.getElementById('gpsSpeed').value = result.speed?.toString() || '0';
+                document.getElementById('gpsOdometer').value = result.odometer_km?.toString() || '0';
+                document.getElementById('gpsLatitude').value = result.last_position?.latitude?.toString() || '0';
+                document.getElementById('gpsLongitude').value = result.last_position?.longitude?.toString() || '0';
+                document.getElementById('gpsTripCount').value = result.trips?.count?.toString() || '0';
+                document.getElementById('gpsTripDistance').value = result.trips?.total_km?.toString() || '0';
+                document.getElementById('gpsTripDuration').value = result.trips?.total_duration || '0:00:00';
+                document.getElementById('gpsVoltage').value = result.voltage?.toString() || '12.6';
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Real GPS data loaded successfully!
+                        <br>Last update: ${result.last_update || 'Unknown'}
+                    </div>
+                `;
+                
+                // Auto-predict after loading data
+                setTimeout(() => predictGPS(), 1000);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Failed to fetch GPS data: ${error.message}
+                        <br>Make sure GPS IoT service is configured
+                    </div>
+                `;
+            }
+        }
+
+        // Hybrid Functions
+        async function predictHybrid() {
+            const resultDiv = document.getElementById('hybridResult');
+            resultDiv.innerHTML = '<div class="loading">🔮 Making hybrid prediction...</div>';
+            
+            try {
+                const sensorData = {
+                    vehicle_id: document.getElementById('hybridVehicleId').value,
+                    'Engine_rpm': parseFloat(document.getElementById('hybridEngineRpm').value),
+                    'Lub_oil_pressure': parseFloat(document.getElementById('hybridLubOilPressure').value),
+                    'Fuel_pressure': parseFloat(document.getElementById('hybridFuelPressure').value),
+                    'Coolant_pressure': parseFloat(document.getElementById('hybridCoolantPressure').value),
+                    'lub_oil_temp': parseFloat(document.getElementById('hybridLubOilTemp').value),
+                    'Coolant_temp': parseFloat(document.getElementById('hybridCoolantTemp').value),
+                    'Temperature_difference': parseFloat(document.getElementById('hybridCoolantTemp').value) - parseFloat(document.getElementById('hybridLubOilTemp').value)
+                };
+                
+                const gpsData = {
+                    vehicle_name: document.getElementById('hybridGpsVehicleName').value,
+                    vin: document.getElementById('hybridGpsVin').value,
+                    speed: parseFloat(document.getElementById('hybridGpsSpeed').value),
+                    odometer_km: parseFloat(document.getElementById('hybridGpsOdometer').value),
+                    last_position_latitude: 19.899827,
+                    last_position_longitude: -99.222737,
+                    last_position_timestamp: new Date().toISOString()
+                };
+                
+                const result = await apiCall('/predict/hybrid', 'POST', { 
+                    hybrid_data: { 
+                        sensor_data: sensorData, 
+                        gps_data: gpsData 
+                    } 
+                });
+                
+                const statusClass = result.maintenance_required ? 'warning' : 'success';
+                
+                resultDiv.innerHTML = `
+                    <div class="result-card">
+                        <h3>
+                            <span class="status-indicator ${statusClass}"></span>
+                            Hybrid Prediction for ${result.vehicle_id}
+                        </h3>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <div class="label">Maintenance Required</div>
+                                <div class="value">${result.maintenance_required ? '⚠️ YES' : '✅ NO'}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Maintenance Probability</div>
+                                <div class="value">${result.maintenance_probability}%</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Days Until Maintenance</div>
+                                <div class="value">${result.estimated_days_remaining_before_maintenance} days</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Model Confidence</div>
+                                <div class="value">${result.model_confidence}%</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="label">Data Source</div>
+                                <div class="value">${result.data_source || 'hybrid'}</div>
+                            </div>
+                        </div>
+                        ${result.gps_insights ? `
+                            <div class="gps-insights">
+                                <h4>📍 GPS Insights</h4>
+                                <div class="insights-grid">
+                                    <div class="insight-item">
+                                        <div class="label">VIN</div>
+                                        <div class="value">${result.gps_insights.vin}</div>
+                                    </div>
+                                    <div class="insight-item">
+                                        <div class="label">Current Speed</div>
+                                        <div class="value">${result.gps_insights.current_speed || 0} km/h</div>
+                                    </div>
+                                    <div class="insight-item">
+                                        <div class="label">Odometer</div>
+                                        <div class="value">${result.gps_insights.odometer_km || 0} km</div>
+                                    </div>
+                                    <div class="insight-item">
+                                        <div class="label">Daily Trips</div>
+                                        <div class="value">${result.gps_insights.daily_trips || 0}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Hybrid prediction failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function generateRandomHybridData() {
+            // Generate random sensor data
+            generateRandomData();
+            
+            // Copy sensor data to hybrid form
+            document.getElementById('hybridVehicleId').value = document.getElementById('vehicleId').value;
+            document.getElementById('hybridEngineRpm').value = document.getElementById('engineRpm').value;
+            document.getElementById('hybridLubOilPressure').value = document.getElementById('lubOilPressure').value;
+            document.getElementById('hybridFuelPressure').value = document.getElementById('fuelPressure').value;
+            document.getElementById('hybridCoolantPressure').value = document.getElementById('coolantPressure').value;
+            document.getElementById('hybridLubOilTemp').value = document.getElementById('lubOilTemp').value;
+            document.getElementById('hybridCoolantTemp').value = document.getElementById('coolantTemp').value;
+            
+            // Generate random GPS data
+            generateRandomGPSData();
+            
+            // Copy GPS data to hybrid form
+            document.getElementById('hybridGpsVehicleName').value = document.getElementById('gpsVehicleName').value;
+            document.getElementById('hybridGpsVin').value = document.getElementById('gpsVin').value;
+            document.getElementById('hybridGpsSpeed').value = document.getElementById('gpsSpeed').value;
+            document.getElementById('hybridGpsOdometer').value = document.getElementById('gpsOdometer').value;
+        }
         checkHealth();
     </script>
 </body>

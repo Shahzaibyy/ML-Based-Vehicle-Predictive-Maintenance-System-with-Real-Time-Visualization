@@ -7,8 +7,9 @@ from datetime import datetime
 import asyncio
 import os
 
-from src.models.predictor import VehicleMaintenancePredictor
-from src.data.vehicle_data_client import VehicleDataClient, MockVehicleDataClient
+from src.models.predictor import VehicleMaintenancePredictor, DataSourceType
+from src.data.vehicle_data_client import VehicleDataClient
+from src.data.gps_iot_client import GPSVehicleData
 from src.utils.scheduler import PredictionScheduler
 
 # Configure logging
@@ -27,11 +28,44 @@ class SensorData(BaseModel):
     Temperature_difference: float = Field(..., ge=-100, le=100, description="Temperature difference")
     timestamp: Optional[str] = Field(None, description="ISO timestamp of sensor reading")
 
+class GPSIoTData(BaseModel):
+    """GPS IoT data model for API"""
+    vehicle_name: str = Field(..., description="Vehicle name/ID from GPS IoT")
+    vin: str = Field(..., description="Vehicle VIN")
+    engine_status: Optional[int] = Field(None, description="Engine status (0=off, 1=on)")
+    ignition_status: Optional[int] = Field(None, description="Ignition status (0=off, 1=on)")
+    speed: Optional[float] = Field(None, description="Current speed in km/h")
+    odometer_km: Optional[float] = Field(None, description="Odometer reading in km")
+    last_position_latitude: Optional[float] = Field(None, description="Last position latitude")
+    last_position_longitude: Optional[float] = Field(None, description="Last position longitude")
+    last_position_timestamp: Optional[str] = Field(None, description="Last position timestamp")
+    trip_count: Optional[int] = Field(None, description="Daily trip count")
+    trip_total_km: Optional[float] = Field(None, description="Daily total distance in km")
+    trip_duration: Optional[str] = Field(None, description="Daily trip duration")
+    voltage: Optional[float] = Field(None, description="GPS device voltage")
+
+class HybridData(BaseModel):
+    """Hybrid data model combining sensor and GPS IoT data"""
+    sensor_data: SensorData
+    gps_data: Optional[GPSIoTData] = None
+
 class PredictionRequest(BaseModel):
     sensor_data: SensorData
 
+class GPSIoTPredictionRequest(BaseModel):
+    gps_data: GPSIoTData
+
+class HybridPredictionRequest(BaseModel):
+    hybrid_data: HybridData
+
 class BatchPredictionRequest(BaseModel):
     sensor_data_list: List[SensorData]
+
+class GPSIoTBatchPredictionRequest(BaseModel):
+    gps_data_list: List[GPSIoTData]
+
+class HybridBatchPredictionRequest(BaseModel):
+    hybrid_data_list: List[HybridData]
 
 class PredictionResponse(BaseModel):
     vehicle_id: str
@@ -40,6 +74,9 @@ class PredictionResponse(BaseModel):
     maintenance_probability: float
     estimated_days_remaining_before_maintenance: int
     model_confidence: float
+    data_source: Optional[str] = None
+    features_used: Optional[List[str]] = None
+    gps_insights: Optional[Dict[str, Any]] = None
 
 class BackendResponse(BaseModel):
     success: bool
@@ -63,18 +100,44 @@ app.add_middleware(
 
 # Global variables
 predictor = None
+gps_predictor = None
+hybrid_predictor = None
 scheduler = None
 use_mock_data = os.getenv("USE_MOCK_DATA", "true").lower() == "true"
+data_source_type = os.getenv("DATA_SOURCE_TYPE", "sensor").lower()
 vehicle_api_url = os.getenv("VEHICLE_API_URL", "https://api.example.com")
 vehicle_api_key = os.getenv("VEHICLE_API_KEY", None)
 backend_api_url = os.getenv("BACKEND_API_URL", "http://localhost:3000")
+
+# GPS IoT Configuration
+gps_base_url = os.getenv("GPS_BASE_URL", "https://base_url/prod/prod")
+gps_username = os.getenv("GPS_USERNAME", "user_name")
+gps_password = os.getenv("GPS_PASSWORD", "password")
+gps_cache_ttl = int(os.getenv("GPS_CACHE_TTL", "300"))
 
 def get_predictor() -> VehicleMaintenancePredictor:
     """Dependency to get the predictor instance."""
     global predictor
     if predictor is None:
-        predictor = VehicleMaintenancePredictor()
+        data_source = DataSourceType.SENSOR
+        predictor = VehicleMaintenancePredictor(data_source_type=data_source)
     return predictor
+
+def get_gps_predictor() -> VehicleMaintenancePredictor:
+    """Dependency to get the GPS IoT predictor instance."""
+    global gps_predictor
+    if gps_predictor is None:
+        data_source = DataSourceType.GPS_IOT
+        gps_predictor = VehicleMaintenancePredictor(data_source_type=data_source)
+    return gps_predictor
+
+def get_hybrid_predictor() -> VehicleMaintenancePredictor:
+    """Dependency to get the hybrid predictor instance."""
+    global hybrid_predictor
+    if hybrid_predictor is None:
+        data_source = DataSourceType.HYBRID
+        hybrid_predictor = VehicleMaintenancePredictor(data_source_type=data_source)
+    return hybrid_predictor
 
 def get_scheduler() -> PredictionScheduler:
     """Dependency to get the scheduler instance."""
@@ -88,6 +151,17 @@ def get_scheduler() -> PredictionScheduler:
             vehicle_api_key=vehicle_api_key
         )
     return scheduler
+
+def get_data_source_type() -> DataSourceType:
+    """Get configured data source type."""
+    if data_source_type == "gps_iot":
+        return DataSourceType.GPS_IOT
+    elif data_source_type == "hybrid":
+        return DataSourceType.HYBRID
+    elif data_source_type == "sensor":
+        return DataSourceType.SENSOR
+    else:
+        return DataSourceType.SENSOR
 
 @app.on_event("startup")
 async def startup_event():
@@ -227,14 +301,14 @@ async def predict_maintenance_batch(
 async def get_vehicles():
     """Get list of all vehicles."""
     try:
-        if use_mock_data:
-            async with MockVehicleDataClient() as client:
-                vehicles = await client.get_all_vehicles()
-        else:
-            async with VehicleDataClient(vehicle_api_url, vehicle_api_key) as client:
-                vehicles = await client.get_all_vehicles()
+        config = {
+            'data_source': data_source_type,
+            'vehicle_count': 10
+        }
         
-        return {"vehicles": vehicles}
+        async with VehicleDataClient(config) as client:
+            vehicles = await client.get_vehicle_list()
+            return {"vehicles": vehicles}
         
     except Exception as e:
         logger.error(f"Error fetching vehicles: {e}")
@@ -244,12 +318,13 @@ async def get_vehicles():
 async def get_latest_vehicle_data(vehicle_id: str):
     """Get latest sensor data for a specific vehicle."""
     try:
-        if use_mock_data:
-            async with MockVehicleDataClient() as client:
-                data = await client.get_latest_sensor_data(vehicle_id)
-        else:
-            async with VehicleDataClient(vehicle_api_url, vehicle_api_key) as client:
-                data = await client.get_latest_sensor_data(vehicle_id)
+        config = {
+            'data_source': data_source_type,
+            'vehicle_count': 10
+        }
+        
+        async with VehicleDataClient(config) as client:
+            data = await client.get_sensor_data_for_prediction(vehicle_id)
         
         if data is None:
             raise HTTPException(status_code=404, detail=f"No data found for vehicle {vehicle_id}")
@@ -306,9 +381,16 @@ async def send_to_backend(prediction_result: Dict[str, Any]):
             "maintenance_probability": prediction_result["maintenance_probability"],
             "estimated_days_remaining_before_maintenance": prediction_result["estimated_days_remaining_before_maintenance"],
             "prediction_timestamp": prediction_result["timestamp"],
-            "sensor_data": prediction_result["sensor_data"],
             "model_confidence": prediction_result["model_confidence"]
         }
+        
+        # Add sensor_data if available
+        if "sensor_data" in prediction_result:
+            payload["sensor_data"] = prediction_result["sensor_data"]
+        
+        # Add GPS insights if available
+        if "gps_insights" in prediction_result:
+            payload["gps_insights"] = prediction_result["gps_insights"]
         
         # Only try to send if backend URL is configured and not localhost
         if backend_api_url and not backend_api_url.startswith("http://localhost"):
@@ -329,6 +411,279 @@ async def send_to_backend(prediction_result: Dict[str, Any]):
     
     except Exception as e:
         logger.error(f"Error sending prediction to backend: {e}")
+        # Don't raise the error - just log it and continue
+
+# GPS IoT Prediction Endpoints
+@app.post("/predict/gps-iot")
+async def predict_maintenance_from_gps_iot(
+    request: GPSIoTPredictionRequest,
+    gps_predictor: VehicleMaintenancePredictor = Depends(get_gps_predictor)
+):
+    """Predict maintenance using GPS IoT data."""
+    try:
+        # Convert GPS IoT data to GPSVehicleData
+        gps_data = GPSVehicleData(
+            vehicle_name=request.gps_data.vehicle_name,
+            vin=request.gps_data.vin,
+            engine_status=request.gps_data.engine_status,
+            ignition_status=request.gps_data.ignition_status,
+            speed=request.gps_data.speed,
+            odometer_km=request.gps_data.odometer_km,
+            voltage=request.gps_data.voltage
+        )
+        
+        # Add position data if available
+        if request.gps_data.last_position_latitude and request.gps_data.last_position_longitude:
+            from ..data.gps_iot_client import GPSPosition
+            gps_data.last_position = GPSPosition(
+                latitude=request.gps_data.last_position_latitude,
+                longitude=request.gps_data.last_position_longitude,
+                timestamp=datetime.fromisoformat(request.gps_data.last_position_timestamp.replace('Z', '+00:00')) if request.gps_data.last_position_timestamp else datetime.utcnow()
+            )
+        
+        # Add trip data if available
+        if request.gps_data.trip_count is not None:
+            from ..data.gps_iot_client import GPSTripData
+            gps_data.trips = GPSTripData(
+                count=request.gps_data.trip_count,
+                total_duration=request.gps_data.trip_duration or "0:00:00",
+                total_km=request.gps_data.trip_total_km or 0.0
+            )
+        
+        # Make prediction
+        result = gps_predictor.predict_from_gps_iot(gps_data)
+        
+        # Send to backend (async, don't wait for response)
+        asyncio.create_task(send_to_backend(result))
+        
+        # Create response
+        response = PredictionResponse(
+            vehicle_id=result["vehicle_id"],
+            timestamp=result["timestamp"],
+            maintenance_required=result["maintenance_required"],
+            maintenance_probability=result["maintenance_probability"],
+            estimated_days_remaining_before_maintenance=result["estimated_days_remaining_before_maintenance"],
+            model_confidence=result["model_confidence"],
+            data_source=result.get("data_source"),
+            features_used=result.get("features_used"),
+            gps_insights=result.get("gps_insights")
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"GPS IoT prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"GPS IoT prediction failed: {str(e)}")
+
+@app.post("/predict/hybrid")
+async def predict_maintenance_hybrid(
+    request: HybridPredictionRequest,
+    hybrid_predictor: VehicleMaintenancePredictor = Depends(get_hybrid_predictor)
+):
+    """Predict maintenance using hybrid sensor + GPS IoT data."""
+    try:
+        # Convert sensor data
+        sensor_data = request.hybrid_data.sensor_data.dict()
+        
+        # Convert GPS IoT data if available
+        gps_data = None
+        if request.hybrid_data.gps_data:
+            gps_data = GPSVehicleData(
+                vehicle_name=request.hybrid_data.gps_data.vehicle_name,
+                vin=request.hybrid_data.gps_data.vin,
+                engine_status=request.hybrid_data.gps_data.engine_status,
+                ignition_status=request.hybrid_data.gps_data.ignition_status,
+                speed=request.hybrid_data.gps_data.speed,
+                odometer_km=request.hybrid_data.gps_data.odometer_km,
+                voltage=request.hybrid_data.gps_data.voltage
+            )
+            
+            # Add position data if available
+            if request.hybrid_data.gps_data.last_position_latitude and request.hybrid_data.gps_data.last_position_longitude:
+                from ..data.gps_iot_client import GPSPosition
+                gps_data.last_position = GPSPosition(
+                    latitude=request.hybrid_data.gps_data.last_position_latitude,
+                    longitude=request.hybrid_data.gps_data.last_position_longitude,
+                    timestamp=datetime.fromisoformat(request.hybrid_data.gps_data.last_position_timestamp.replace('Z', '+00:00')) if request.hybrid_data.gps_data.last_position_timestamp else datetime.utcnow()
+                )
+            
+            # Add trip data if available
+            if request.hybrid_data.gps_data.trip_count is not None:
+                from ..data.gps_iot_client import GPSTripData
+                gps_data.trips = GPSTripData(
+                    count=request.hybrid_data.gps_data.trip_count,
+                    total_duration=request.hybrid_data.gps_data.trip_duration or "0:00:00",
+                    total_km=request.hybrid_data.gps_data.trip_total_km or 0.0
+                )
+        
+        # Make prediction
+        result = hybrid_predictor.predict_hybrid(sensor_data, gps_data)
+        
+        # Send to backend (async, don't wait for response)
+        asyncio.create_task(send_to_backend(result))
+        
+        # Create response
+        response = PredictionResponse(
+            vehicle_id=result["vehicle_id"],
+            timestamp=result["timestamp"],
+            maintenance_required=result["maintenance_required"],
+            maintenance_probability=result["maintenance_probability"],
+            estimated_days_remaining_before_maintenance=result["estimated_days_remaining_before_maintenance"],
+            model_confidence=result["model_confidence"],
+            data_source=result.get("data_source"),
+            features_used=result.get("features_used"),
+            gps_insights=result.get("gps_insights")
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Hybrid prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Hybrid prediction failed: {str(e)}")
+
+@app.post("/predict/gps-iot/batch")
+async def predict_maintenance_gps_iot_batch(
+    request: GPSIoTBatchPredictionRequest,
+    gps_predictor: VehicleMaintenancePredictor = Depends(get_gps_predictor)
+):
+    """Predict maintenance for multiple vehicles using GPS IoT data."""
+    try:
+        # Convert GPS IoT data list
+        gps_data_list = []
+        for gps_request in request.gps_data_list:
+            gps_data = GPSVehicleData(
+                vehicle_name=gps_request.vehicle_name,
+                vin=gps_request.vin,
+                engine_status=gps_request.engine_status,
+                ignition_status=gps_request.ignition_status,
+                speed=gps_request.speed,
+                odometer_km=gps_request.odometer_km,
+                voltage=gps_request.voltage
+            )
+            
+            # Add position data if available
+            if gps_request.last_position_latitude and gps_request.last_position_longitude:
+                from ..data.gps_iot_client import GPSPosition
+                gps_data.last_position = GPSPosition(
+                    latitude=gps_request.last_position_latitude,
+                    longitude=gps_request.last_position_longitude,
+                    timestamp=datetime.fromisoformat(gps_request.last_position_timestamp.replace('Z', '+00:00')) if gps_request.last_position_timestamp else datetime.utcnow()
+                )
+            
+            # Add trip data if available
+            if gps_request.trip_count is not None:
+                from ..data.gps_iot_client import GPSTripData
+                gps_data.trips = GPSTripData(
+                    count=gps_request.trip_count,
+                    total_duration=gps_request.trip_duration or "0:00:00",
+                    total_km=gps_request.trip_total_km or 0.0
+                )
+            
+            gps_data_list.append(gps_data)
+        
+        # Make batch prediction
+        results = gps_predictor.predict_batch(gps_data_list)
+        
+        # Send to backend (async, don't wait for response)
+        for result in results:
+            if 'error' not in result:
+                asyncio.create_task(send_to_backend(result))
+        
+        return {"predictions": results}
+        
+    except Exception as e:
+        logger.error(f"GPS IoT batch prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"GPS IoT batch prediction failed: {str(e)}")
+
+@app.get("/gps-iot/vehicles")
+async def get_gps_iot_vehicles():
+    """Get list of vehicles from GPS IoT system."""
+    try:
+        from src.data.gps_iot_client import GPSIoTDataClient
+        
+        config = {
+            'base_url': gps_base_url,
+            'username': gps_username,
+            'password': gps_password,
+            'cache_ttl': gps_cache_ttl
+        }
+        
+        client = GPSIoTDataClient(config)
+        vehicles = await client.get_vehicle_list()
+        await client.close()
+        return {"vehicles": vehicles}
+        
+    except Exception as e:
+        logger.error(f"Error fetching GPS IoT vehicles: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch GPS IoT vehicles: {str(e)}")
+
+@app.get("/gps-iot/vehicles/{vehicle_name}/data")
+async def get_gps_iot_vehicle_data(vehicle_name: str):
+    """Get GPS IoT data for a specific vehicle."""
+    try:
+        from src.data.gps_iot_client import GPSIoTDataClient
+        
+        config = {
+            'base_url': gps_base_url,
+            'username': gps_username,
+            'password': gps_password,
+            'cache_ttl': gps_cache_ttl
+        }
+        
+        client = GPSIoTDataClient(config)
+        gps_data = await client.get_vehicle_data(vehicle_name)
+        await client.close()
+        
+        # Convert to dict for JSON response
+        response = {
+            "vehicle_name": gps_data.vehicle_name,
+            "vin": gps_data.vin,
+            "engine_status": gps_data.engine_status,
+            "ignition_status": gps_data.ignition_status,
+            "speed": gps_data.speed,
+            "odometer_km": gps_data.odometer_km,
+            "last_position": {
+                "latitude": gps_data.last_position.latitude,
+                "longitude": gps_data.last_position.longitude,
+                "timestamp": gps_data.last_position.timestamp.isoformat()
+            } if gps_data.last_position else None,
+            "trips": {
+                "count": gps_data.trips.count,
+                "total_duration": gps_data.trips.total_duration,
+                "total_km": gps_data.trips.total_km
+            } if gps_data.trips else None,
+            "parking_events": gps_data.parking_events,
+            "voltage": gps_data.voltage,
+            "last_update": gps_data.last_update.isoformat()
+        }
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error fetching GPS IoT vehicle data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch GPS IoT vehicle data: {str(e)}")
+
+@app.get("/data-sources")
+async def get_data_sources():
+    """Get available data sources and current configuration."""
+    try:
+        return {
+            "current_data_source": data_source_type,
+            "available_sources": ["sensor", "gps_iot", "hybrid"],
+            "gps_iot_configured": bool(gps_username and gps_password),
+            "endpoints": {
+                "sensor": "/predict",
+                "gps_iot": "/predict/gps-iot",
+                "hybrid": "/predict/hybrid",
+                "batch_sensor": "/predict/batch",
+                "batch_gps_iot": "/predict/gps-iot/batch",
+                "batch_hybrid": "/predict/hybrid/batch"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting data sources: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get data sources: {str(e)}")
         # Don't raise the error - just log it and continue
 
 if __name__ == "__main__":

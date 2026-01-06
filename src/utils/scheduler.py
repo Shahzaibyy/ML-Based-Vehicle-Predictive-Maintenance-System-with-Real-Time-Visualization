@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 import aiohttp
 
 from src.models.predictor import VehicleMaintenancePredictor
-from src.data.vehicle_data_client import VehicleDataClient, MockVehicleDataClient
+from src.data.vehicle_data_client import VehicleDataClient
 
 logger = logging.getLogger(__name__)
 
@@ -114,29 +114,33 @@ class PredictionScheduler:
         except Exception as e:
             logger.error(f"Error in daily predictions: {e}")
     
-    async def _get_all_vehicles(self) -> List[Dict[str, Any]]:
+    async def _get_all_vehicles(self) -> List[str]:
         """Get list of all vehicles."""
         try:
-            if self.use_mock_data:
-                async with MockVehicleDataClient() as client:
-                    return await client.get_all_vehicles()
-            else:
-                async with VehicleDataClient(self.vehicle_api_url, self.vehicle_api_key) as client:
-                    return await client.get_all_vehicles()
+            # Use the new VehicleDataClient interface
+            config = {
+                'data_source': 'mock' if self.use_mock_data else 'gps_iot',
+                'vehicle_count': 50
+            }
+            
+            client = VehicleDataClient(config)
+            vehicles = await client.get_vehicle_list()
+            await client.close()
+            return vehicles
         
         except Exception as e:
             logger.error(f"Error fetching vehicles: {e}")
             return []
     
-    async def _process_vehicle_batch(self, vehicles: List[Dict[str, Any]]) -> Dict[str, int]:
+    async def _process_vehicle_batch(self, vehicles: List[str]) -> Dict[str, int]:
         """Process a batch of vehicles for predictions."""
         successful = 0
         failed = 0
         
         # Create tasks for concurrent processing
         tasks = []
-        for vehicle in vehicles:
-            task = asyncio.create_task(self._process_single_vehicle(vehicle))
+        for vehicle_id in vehicles:
+            task = asyncio.create_task(self._process_single_vehicle(vehicle_id))
             tasks.append(task)
         
         # Wait for all tasks to complete
@@ -152,9 +156,8 @@ class PredictionScheduler:
         
         return {"successful": successful, "failed": failed}
     
-    async def _process_single_vehicle(self, vehicle: Dict[str, Any]) -> bool:
+    async def _process_single_vehicle(self, vehicle_id: str) -> bool:
         """Process a single vehicle for prediction."""
-        vehicle_id = vehicle.get('vehicle_id')
         
         try:
             # Get latest sensor data
@@ -184,12 +187,16 @@ class PredictionScheduler:
     async def _get_latest_sensor_data(self, vehicle_id: str) -> Dict[str, Any]:
         """Get latest sensor data for a vehicle."""
         try:
-            if self.use_mock_data:
-                async with MockVehicleDataClient() as client:
-                    return await client.get_latest_sensor_data(vehicle_id)
-            else:
-                async with VehicleDataClient(self.vehicle_api_url, self.vehicle_api_key) as client:
-                    return await client.get_latest_sensor_data(vehicle_id)
+            # Use the new VehicleDataClient interface
+            config = {
+                'data_source': 'mock' if self.use_mock_data else 'gps_iot',
+                'vehicle_count': 50
+            }
+            
+            client = VehicleDataClient(config)
+            sensor_data = await client.get_sensor_data_for_prediction(vehicle_id)
+            await client.close()
+            return sensor_data
         
         except Exception as e:
             logger.error(f"Error fetching sensor data for {vehicle_id}: {e}")
@@ -204,22 +211,30 @@ class PredictionScheduler:
                 "maintenance_probability": prediction["maintenance_probability"],
                 "estimated_days_remaining_before_maintenance": prediction["estimated_days_remaining_before_maintenance"],
                 "prediction_timestamp": prediction["timestamp"],
-                "sensor_data": prediction["sensor_data"],
                 "model_confidence": prediction["model_confidence"]
             }
+            
+            # Add sensor_data if available
+            if "sensor_data" in prediction:
+                payload["sensor_data"] = prediction["sensor_data"]
+            
+            # Add GPS insights if available
+            if "gps_insights" in prediction:
+                payload["gps_insights"] = prediction["gps_insights"]
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.backend_api_url}/api/vehicle/maintenance-prediction",
                     json=payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=5)
                 ) as response:
                     if response.status == 200:
+                        logger.info(f"Successfully sent prediction for vehicle {prediction['vehicle_id']}")
                         return True
                     else:
                         error_text = await response.text()
-                        logger.error(f"Backend API error {response.status}: {error_text}")
+                        logger.error(f"Failed to send prediction to backend: {response.status} - {error_text}")
                         return False
         
         except Exception as e:
